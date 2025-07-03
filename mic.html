@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Mic - Rekam Suara</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="supabaseClient.js"></script>
+</head>
+<body>
+  <h2>🎤 Rekam Suara</h2>
+  <button id="startBtn">Mulai Rekam</button>
+  <button id="stopBtn" disabled>Stop & Upload</button>
+
+  <script>
+    let mediaRecorder;
+    let chunks = [];
+
+    document.getElementById('startBtn').onclick = async () => {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.start();
+      chunks = [];
+
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+    };
+
+    document.getElementById('stopBtn').onclick = async () => {
+      mediaRecorder.stop();
+      document.getElementById('startBtn').disabled = false;
+      document.getElementById('stopBtn').disabled = true;
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const filename = `audio-${Date.now()}.webm`;
+
+        // upload ke Supabase Storage
+        const { error: uploadError } = await supabase.storage.from('rekaman').upload(filename, blob);
+        if (uploadError) return alert('❌ Upload gagal');
+
+        // insert ke database
+        await supabase.from('log_suara').insert([{ filename }]);
+        alert('✅ Suara terkirim!');
+      };
+    };
+  </script>
+</body>
+</html>

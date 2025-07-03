@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Speaker - Suara Masuk</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="supabaseClient.js"></script>
+</head>
+<body>
+  <h2>🔊 Suara Masuk</h2>
+  <audio id="player" controls autoplay></audio>
+
+  <script>
+    const player = document.getElementById('player');
+
+    // pantau perubahan realtime
+    supabase
+      .channel('realtime:log_suara')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'log_suara' }, async payload => {
+        const filename = payload.new.filename;
+        const { data, error } = await supabase.storage.from('rekaman').download(filename);
+        if (error) return console.error('❌ Gagal ambil file', error);
+
+        const url = URL.createObjectURL(data);
+        player.src = url;
+        player.play();
+      })
+      .subscribe();
+  </script>
+</body>
+</html>
