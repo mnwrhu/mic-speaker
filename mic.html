@@ -2,13 +2,15 @@
 <html>
 <head>
   <title>Mic - Rekam Suara</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <script src="supabaseClient.js"></script>
 </head>
 <body>
   <h2>🎤 Rekam Suara</h2>
   <button id="startBtn">Mulai Rekam</button>
   <button id="stopBtn" disabled>Stop & Upload</button>
+
+  <!-- Urutan sangat penting: load supabase SDK dulu -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="supabaseClient.js"></script>
 
   <script>
     let mediaRecorder;
