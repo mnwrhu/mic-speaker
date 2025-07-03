@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
+  <meta charset="UTF-8" />
   <title>Mic - Rekam Suara</title>
 </head>
 <body>
@@ -8,41 +9,63 @@
   <button id="startBtn">Mulai Rekam</button>
   <button id="stopBtn" disabled>Stop & Upload</button>
 
-  <!-- Urutan sangat penting: load supabase SDK dulu -->
+  <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <!-- Koneksi Supabase -->
   <script src="supabaseClient.js"></script>
 
   <script>
     let mediaRecorder;
     let chunks = [];
 
-    document.getElementById('startBtn').onclick = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      mediaRecorder.start();
-      chunks = [];
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
 
-      mediaRecorder.ondataavailable = e => chunks.push(e.data);
-      document.getElementById('startBtn').disabled = true;
-      document.getElementById('stopBtn').disabled = false;
+    startBtn.onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+        chunks = [];
+
+        mediaRecorder.ondataavailable = e => chunks.push(e.data);
+
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+      } catch (err) {
+        alert('❌ Tidak bisa akses mikrofon: ' + err.message);
+      }
     };
 
-    document.getElementById('stopBtn').onclick = async () => {
+    stopBtn.onclick = () => {
       mediaRecorder.stop();
-      document.getElementById('startBtn').disabled = false;
-      document.getElementById('stopBtn').disabled = true;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
 
       mediaRecorder.onstop = async () => {
         const blob = new Blob(chunks, { type: 'audio/webm' });
         const filename = `audio-${Date.now()}.webm`;
 
-        // upload ke Supabase Storage
-        const { error: uploadError } = await supabase.storage.from('rekaman').upload(filename, blob);
-        if (uploadError) return alert('❌ Upload gagal');
+        try {
+          // Upload ke Supabase Storage
+          const { error: uploadError } = await supabase.storage.from('rekaman').upload(filename, blob);
+          if (uploadError) {
+            alert('❌ Upload gagal: ' + uploadError.message);
+            return;
+          }
 
-        // insert ke database
-        await supabase.from('log_suara').insert([{ filename }]);
-        alert('✅ Suara terkirim!');
+          // Simpan log ke database
+          const { error: insertError } = await supabase.from('log_suara').insert([{ filename }]);
+          if (insertError) {
+            alert('❌ Gagal menyimpan log: ' + insertError.message);
+            return;
+          }
+
+          alert('✅ Suara berhasil dikirim!');
+        } catch (err) {
+          alert('❌ Error saat mengirim: ' + err.message);
+          console.error(err);
+        }
       };
     };
   </script>
