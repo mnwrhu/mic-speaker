@@ -12,65 +12,64 @@
   <!-- Supabase SDK -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
 
-  <script>
-    // ✅ LANGSUNG INISIALISASI SUPABASE DI SINI
-    const supabaseUrl = 'https://zdwjuwbbhqzoqapvhiwn.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpkd2p1d2JiaHF6b3FhcHZoaXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1NTQxNjEsImV4cCI6MjA2NzEzMDE2MX0.62anUbI3t_5Acd_Zbv57y5f5G59KRC07hwx9ovsf-W0';
-    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+  <<script>
+window.addEventListener('load', () => {
+  const supabaseUrl = 'https://zdwjuwbbhqzoqapvhiwn.supabase.co';
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpkd2p1d2JiaHF6b3FhcHZoaXduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1NTQxNjEsImV4cCI6MjA2NzEzMDE2MX0.62anUbI3t_5Acd_Zbv57y5f5G59KRC07hwx9ovsf-W0';
+  const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
-    let mediaRecorder;
-    let chunks = [];
+  let mediaRecorder;
+  let chunks = [];
 
-    const startBtn = document.getElementById("startBtn");
-    const stopBtn = document.getElementById("stopBtn");
+  const startBtn = document.getElementById("startBtn");
+  const stopBtn = document.getElementById("stopBtn");
 
-    startBtn.onclick = async () => {
+  startBtn.onclick = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      mediaRecorder.start();
+      chunks = [];
+
+      mediaRecorder.ondataavailable = e => chunks.push(e.data);
+
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    } catch (err) {
+      alert('❌ Tidak bisa akses mikrofon: ' + err.message);
+    }
+  };
+
+  stopBtn.onclick = () => {
+    mediaRecorder.stop();
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const filename = `audio-${Date.now()}.webm`;
+
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.start();
-        chunks = [];
+        const { error: uploadError } = await supabase.storage.from('rekaman').upload(filename, blob);
+        if (uploadError) {
+          alert('❌ Upload gagal: ' + uploadError.message);
+          return;
+        }
 
-        mediaRecorder.ondataavailable = e => chunks.push(e.data);
+        const { error: insertError } = await supabase.from('log_suara').insert([{ filename }]);
+        if (insertError) {
+          alert('❌ Gagal menyimpan log: ' + insertError.message);
+          return;
+        }
 
-        startBtn.disabled = true;
-        stopBtn.disabled = false;
+        alert('✅ Suara berhasil dikirim!');
       } catch (err) {
-        alert('❌ Tidak bisa akses mikrofon: ' + err.message);
+        alert('❌ Error saat mengirim: ' + err.message);
+        console.error(err);
       }
     };
-
-    stopBtn.onclick = () => {
-      mediaRecorder.stop();
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-
-      mediaRecorder.onstop = async () => {
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        const filename = `audio-${Date.now()}.webm`;
-
-        try {
-          // ✅ Upload ke Supabase Storage
-          const { error: uploadError } = await supabase.storage.from('rekaman').upload(filename, blob);
-          if (uploadError) {
-            alert('❌ Upload gagal: ' + uploadError.message);
-            return;
-          }
-
-          // ✅ Simpan ke tabel log_suara
-          const { error: insertError } = await supabase.from('log_suara').insert([{ filename }]);
-          if (insertError) {
-            alert('❌ Gagal menyimpan log: ' + insertError.message);
-            return;
-          }
-
-          alert('✅ Suara berhasil dikirim!');
-        } catch (err) {
-          alert('❌ Error saat mengirim: ' + err.message);
-          console.error(err);
-        }
-      };
-    };
-  </script>
+  };
+});
+</script>
 </body>
 </html>
